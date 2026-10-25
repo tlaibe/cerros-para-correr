@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cerros para Correr</title>
+<meta name="description" content="Rutas de trail running en Santiago, planificador de fines de semana y registro de tiempos.">
+<meta name="theme-color" content="#2f5d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cerros">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+/* Layout: cabecera con resumen → franja de próximos fines de semana → filtros → lista de rutas como fichas de sendero */
+:root{
+  --bg:#f3f4f1; --surface:#ffffff; --fg:#1d2420; --muted:#5d6a63; --line:#d9ddd6;
+  --accent:#2f5d50; --accent-soft:#dde9e3;
+  --easy:#3d8b4f; --mid:#c28a14; --hard:#c0472f; --pro:#6b3fa0;
+  --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --font-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e8ece9; --muted:#9aa8a1; --line:#2e3833;
+  --accent:#7fc2ad; --accent-soft:#233630;
+  --easy:#6cc07e; --mid:#e2ad45; --hard:#ec7a62; --pro:#b28be0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e8ece9; --muted:#9aa8a1; --line:#2e3833;
+  --accent:#7fc2ad; --accent-soft:#233630;
+  --easy:#6cc07e; --mid:#e2ad45; --hard:#ec7a62; --pro:#b28be0; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:26px}
+header h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2.4rem,8vw,3.6rem);line-height:.95;margin:0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+header p{margin:8px 0 0;color:var(--muted);max-width:60ch}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.stat{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px}
+.stat b{font-family:var(--font-display);font-size:20px;font-variant-numeric:tabular-nums}
+h2{font-family:var(--font-display);font-weight:800;font-size:1.6rem;text-transform:uppercase;letter-spacing:.02em;margin:0 0 10px}
+.weeks{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:8px;overflow-x:auto;padding-bottom:6px}
+.wk{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.wk .d{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.wk .r{font-weight:600;font-size:14px;line-height:1.3}
+.wk .r.empty{color:var(--muted);font-weight:400}
+.wk.has{border-color:var(--accent);background:var(--accent-soft)}
+.wk .r span{display:block}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip:focus-visible,select:focus-visible,.st button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sort{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+select{font:inherit;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px 18px;display:flex;flex-direction:column;gap:10px;position:relative;min-width:0}
+.card::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:4px;border-radius:0 3px 3px 0;background:var(--lv)}
+.card.done{opacity:.72}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card h3{margin:0;font-size:16px;line-height:1.25;text-wrap:balance}
+.lvl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--lv);white-space:nowrap;padding-top:3px}
+.acc{font-size:13px;color:var(--muted);margin:2px 0 0}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 0}
+.nums div{display:flex;flex-direction:column;min-width:0}
+.nums b{font-family:var(--font-display);font-size:20px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.nums span{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--lv)}
+.note{font-size:13px;margin:0;color:var(--fg)}
+.plan{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.plan select{flex:1 1 140px;min-width:0}
+.st{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.st button{font:inherit;font-size:12px;font-weight:600;padding:6px 10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.st button+button{border-left:1px solid var(--line)}
+.st button[aria-pressed="true"]{background:var(--accent);color:var(--bg)}
+.sync{font-size:12px;color:var(--muted)}
+.guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px;align-items:start}
+.gp{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.gp h3{font-family:var(--font-display);font-weight:800;font-size:1.25rem;text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px;color:var(--accent)}
+.gp h3.sub{margin-top:14px}
+.gp ul,.gp ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;font-size:14px}
+.gp ol{font-variant-numeric:tabular-nums}
+.gp p{margin:0;font-size:14px}
+.alert{font-size:12.5px;padding:7px 10px;border-radius:8px;background:color-mix(in srgb,var(--mid) 16%,transparent);border:1px solid color-mix(in srgb,var(--mid) 45%,transparent);margin:0}
+.pb{margin:0;font-size:13px;font-weight:600;color:var(--accent)}
+.tform{display:grid;grid-template-columns:2fr 1.2fr 1fr 1fr auto;gap:8px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.tform label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+.tform input,.tform select{font:inherit;font-size:14px;padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-width:0;width:100%}
+.save{font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;border:0;background:var(--accent);color:var(--bg);cursor:pointer}
+.save:disabled{opacity:.5;cursor:default}
+@media (max-width:640px){.tform{grid-template-columns:1fr 1fr}.tform label:first-child{grid-column:1/-1}.save{grid-column:1/-1}}
+.tscroll{overflow-x:auto;margin-top:8px}
+.times{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.times th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.times td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.times .n{text-align:right;white-space:nowrap}
+.times td.empty{color:var(--muted);text-align:center;padding:18px}
+.times .pbtag{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+.del{font:inherit;font-size:12px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer;white-space:nowrap}
+.del.confirm{border-color:var(--hard);color:var(--hard)}
+.save:focus-visible,.del:focus-visible,.tform input:focus-visible,.tform select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.perf{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
+.perf:empty{display:none}
+.pc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.pc b{display:block;font-family:var(--font-display);font-size:26px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.pc span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.pc p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+.lvchip{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;color:var(--c);border:1px solid var(--c)}
+.how{margin-top:10px;font-size:13.5px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.how summary{cursor:pointer;font-weight:600}
+.how p{margin:8px 0 0;max-width:70ch}
+.bands{display:flex;flex-wrap:wrap;gap:6px}
+.bands span{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--c);color:var(--c)}
+.proj{margin:0;font-size:13px;color:var(--muted)}
+.proj b{color:var(--fg);font-variant-numeric:tabular-nums}
+.links{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.links a{font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+.links a:hover{border-color:var(--accent)}
+.links a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.backup{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.backup button,.backup label.btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.backup input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;max-width:70ch}
+@media (max-width:520px){.sort{margin-left:0}}
+@media (prefers-reduced-motion:no-preference){.chip,.st button{transition:background .15s,color .15s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Cerros para correr</h1>
+    <p>Rutas de trail en Santiago por nivel, con la distancia desde Plaza Baquedano hasta el acceso. Asigna cada ruta a un fin de semana y márcala como hecha cuando la corras.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <section>
+    <h2>Próximos fines de semana</h2>
+    <div class="weeks" id="weeks"></div>
+  </section>
+
+  <section>
+    <h2>Mis tiempos</h2>
+    <form class="tform" id="tform">
+      <label for="t-ruta">Ruta<select id="t-ruta" required></select></label>
+      <label for="t-fecha">Fecha<input type="date" id="t-fecha"></label>
+      <label for="t-sub">Subida (min)<input type="number" id="t-sub" min="1" max="900" inputmode="numeric" required></label>
+      <label for="t-baj">Bajada (min)<input type="number" id="t-baj" min="1" max="900" inputmode="numeric"></label>
+      <button type="submit" class="save" id="t-save">Guardar tiempo</button>
+    </form>
+    <p class="sync" id="t-msg"></p>
+    <div class="perf" id="perf"></div>
+    <div class="tscroll"><table class="times"><thead><tr><th>Fecha</th><th>Ruta</th><th class="n">Subida</th><th class="n">Bajada</th><th class="n">Total</th><th class="n">m/h</th><th class="n">Índice</th><th>Nivel</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div>
+    <details class="how"><summary>Cómo se calcula el índice</summary>
+      <p>Cada subida se compara con la <b>regla de Naismith</b>, el estándar clásico de montaña para alguien que camina: 1 hora cada 5 km de avance más 1 hora cada 600 m de desnivel. El <b>índice</b> es cuántas veces más rápido que ese estándar subiste: 1,0 es una caminata normal y 2,0 es el doble de rápido.</p>
+      <p>Los <b>m/h</b> (velocidad vertical) indican cuántos metros de desnivel ganas por hora. Es la medida más usada en trail para comparar subidas de distinta pendiente.</p>
+      <p>Para las rutas de ida y vuelta, el tramo de subida se calcula como la mitad de la distancia con todo el desnivel. Si el desnivel de una ruta es estimado (≈), el índice también lo es.</p>
+      <p class="bands"><span style="--c:var(--muted)">&lt;1,2 Caminata</span><span style="--c:var(--easy)">1,2–1,6 Caminata rápida</span><span style="--c:var(--accent)">1,6–2,2 Trote de trail</span><span style="--c:var(--mid)">2,2–2,8 Muy bueno</span><span style="--c:var(--hard)">≥2,8 Competitivo</span></p>
+    </details>
+  </section>
+
+  <section>
+    <h2>Guía</h2>
+    <div class="guide">
+      <article class="gp">
+        <h3>Cómo entrenar</h3>
+        <ul>
+          <li><b>Base suave.</b> La mayor parte del volumen a ritmo conversable, cerca del 65–75 % de tu pulso máximo (estimado como 220 menos tu edad).</li>
+          <li><b>Progresa de a una variable.</b> Sube distancia o desnivel, nunca las dos en la misma semana.</li>
+          <li><b>Caminar subiendo vale.</b> En pendientes fuertes como el Manquehue, caminar rápido con el pulso controlado rinde más que trotar al límite.</li>
+          <li><b>Bajadas.</b> Reduce la velocidad, pasos cortos y mirada 2–3 metros adelante. Son las que más cargan los músculos.</li>
+          <li><b>Fuerza 2 veces por semana.</b> Piernas, pantorrillas, tobillos, cadera y core: sentadillas, zancadas, step-ups, elevación de talones y planchas.</li>
+          <li><b>Recuperación.</b> Al menos un día de descanso. Si tu pulso en reposo sube o el cansancio dura varios días, afloja la semana.</li>
+        </ul>
+      </article>
+      <article class="gp">
+        <h3>Antes de salir</h3>
+        <ul>
+          <li><b>Aguas de Ramón</b> (red Parque Cordillera): abre todos los días, de 8:00 a 19:00 en verano y hasta 18:00 en invierno. El ingreso a trekking cierra a las 13:00 y la entrada es nominativa por Puntoticket.</li>
+          <li><b>Rutas largas</b> como Salto de Apoquindo, La Cruz, Provincia o San Ramón: empieza al amanecer y confirma la hora límite de ingreso del parque.</li>
+          <li><b>Calor y sombra.</b> En primavera y verano lleva 1,5–2 L de agua, gorro y bloqueador. Casi todas las cumbres están expuestas.</li>
+          <li><b>Incendios.</b> En temporada seca los parques cierran senderos con poco aviso. Revisa la web del parque el mismo día.</li>
+          <li><b>Avisa tu ruta</b> y la hora de regreso a alguien, sobre todo si vas solo a los cerros difíciles.</li>
+        </ul>
+      </article>
+      <article class="gp">
+        <h3>Progresión sugerida</h3>
+        <ol>
+          <li>Manquehuito</li>
+          <li>El Carbón</li>
+          <li>Cascada San Juan</li>
+          <li>Manquehue</li>
+          <li>Pochoco</li>
+          <li>Salto de Apoquindo</li>
+          <li>La Cruz</li>
+          <li>Provincia</li>
+        </ol>
+        <h3 class="sub">Para fijarse una meta</h3>
+        <p><b>Endurance by The North Face</b> se corre en la precordillera de Santiago, con distancias de 10K, 25K, 50K, 80K y 160K. La edición 2026 fue el 17 de octubre y las inscripciones abrieron a fines de mayo, así que el 10K o 25K de 2027 es una buena meta para esta progresión. Confirma fechas en tnfendurancetrail.cl.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Rutas</h2>
+    <div class="filters" role="group" aria-label="Filtrar por nivel">
+      <button class="chip" id="f-todos" data-f="todos" aria-pressed="true">Todas</button>
+      <button class="chip" id="f-facil" data-f="facil" aria-pressed="false">Fácil</button>
+      <button class="chip" id="f-intermedio" data-f="intermedio" aria-pressed="false">Intermedio</button>
+      <button class="chip" id="f-dificil" data-f="dificil" aria-pressed="false">Difícil</button>
+      <button class="chip" id="f-pend" data-f="pendientes" aria-pressed="false">Sin hacer</button>
+      <label class="sort" for="orden">Ordenar
+        <select id="orden">
+          <option value="nivel">por nivel</option>
+          <option value="cerca">más cerca del centro</option>
+          <option value="desnivel">por desnivel</option>
+        </select>
+      </label>
+    </div>
+    <p class="sync" id="sync"></p>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section>
+    <h2>Respaldo</h2>
+    <p class="sync">Tus datos se guardan solo en este navegador. Descarga un respaldo de vez en cuando y úsalo para pasar tus datos a otro dispositivo.</p>
+    <div class="backup">
+      <button type="button" id="b-export">Descargar respaldo</button>
+      <label class="btn" for="b-import">Importar respaldo<input type="file" id="b-import" accept="application/json,.json"></label>
+      <span class="sync" id="b-msg"></span>
+    </div>
+  </section>
+
+  <footer>Distancias por calle desde Plaza Baquedano, aproximadas. Los valores con ≈ son estimaciones. Datos de accesos y horarios revisados en octubre de 2026. Antes de salir revisa horarios, tarifas y cierres por riesgo de incendio, que son frecuentes en verano.</footer>
+</div>
+
+<script>
+const R=[
+ {id:"san-cristobal",links:[["Andeshandbook", "https://www.andeshandbook.org/montanismo/cerro/2559/San_Cristobal"]],n:"Cerro San Cristóbal",lv:"facil",acc:"Pío Nono, Providencia",km:2,dist:"5–10",d:240,cima:"863",nota:"Parque Metropolitano. Mucha gente los fines de semana; ideal para rodajes con subida."},
+ {id:"renca",links:[["Andeshandbook: ruta", "https://www.andeshandbook.org/senderismo/ruta/1802/cerro_renca_"], ["Andeshandbook: cerro", "https://www.andeshandbook.org/montanismo/cerro/2558/renca"]],n:"Cerro Renca",lv:"facil",acc:"Renca, sector Parque Cerro Renca",km:10,dist:"≈5",d:250,cima:"≈900",nota:"Corto, subidas moderadas y vista al poniente."},
+ {id:"mahuida",links:[["Komoot: rutas para correr", "https://www.komoot.com/guide/3325329/running-trails-in-reserva-natural-municipal-mahuida"]],n:"Parque Mahuida",lv:"facil",acc:"Av. Larraín, La Reina",km:14,dist:"3–8",d:145,cima:"—",nota:"Senderos señalizados; Loma Pelada son 2,5 km. Entrada pagada."},
+ {id:"aguas-ramon-peumos",links:[["Andeshandbook: Los Peumos", "https://www.andeshandbook.org/en/senderismo/ruta/760/Los_Peumos"]],n:"Aguas de Ramón: Los Peumos / Paleontológica",lv:"facil",acc:"Av. Álvaro Casanova, La Reina",km:15,dist:"≈4",d:200,cima:"—",nota:"Circuitos cortos con miradores, puentes colgantes y cascada. Abre de 8:00 a 19:00 en verano; ingreso a trekking hasta las 13:00, con entrada nominativa por Puntoticket."},
+ {id:"manquehuito",links:[["Andeshandbook: Circuito Manquehuito", "https://www.andeshandbook.org/senderismo/ruta/536/circuito_manquehuito_"]],n:"Cerro Manquehuito",lv:"facil",acc:"Vía Café, Lo Curro, Vitacura",km:14,dist:"≈4",d:350,cima:"≈1.250",nota:"La cumbre baja junto al Manquehue. Desde agosto de 2026 se entra por el nuevo acceso de Vía Café; se puede sumar al Manquehue en una salida doble.",alert:"El acceso por Vía Café es nuevo y la Municipalidad de Vitacura no ha confirmado si es permanente."},
+ {id:"monolito",links:[],n:"San Carlos de Apoquindo: Monolito",lv:"facil",acc:"Camino a San Carlos de Apoquindo, Las Condes",km:20,dist:"5,5",d:230,cima:"1.250",nota:"Sendero corto y amable dentro del parque natural."},
+ {id:"mirador-litre",links:[["Andeshandbook: El Carbón por La Pirámide", "https://www.andeshandbook.org/senderismo/ruta/537/Cerro_El_Carbon_por_La_Piramide"]],n:"Cerro El Carbón: Mirador El Litre",lv:"facil",acc:"Rotonda La Pirámide, Vitacura",km:10,dist:"≈4",d:350,dTxt:"≈350",cima:"—",nota:"Punto intermedio de la subida al Carbón. Buena sesión corta de cuestas antes de ir a la cumbre."},
+ {id:"carbon",links:[["Andeshandbook: por La Pirámide", "https://www.andeshandbook.org/senderismo/ruta/537/Cerro_El_Carbon_por_La_Piramide"]],n:"Cerro El Carbón",lv:"intermedio",acc:"Rotonda La Pirámide, Vitacura",km:10,dist:"8",d:700,cima:"1.635",nota:"Parque Metropolitano. Abierto de 6:00 a 19:00, gratis. Vista casi en 360° y gran perspectiva del Manquehue."},
+ {id:"cascada-san-juan",links:[["Andeshandbook: Cascada de Macul", "https://www.andeshandbook.org/senderismo/ruta/650/Cascada_de_Macul"]],n:"Quebrada de Macul: Cascada San Juan",lv:"intermedio",acc:"Diagonal Las Torres s/n, Peñalolén",km:15,dist:"8",d:480,cima:"—",nota:"Por el Sendero Estero (ex Quincho). Bosque esclerófilo con algo de sombra."},
+ {id:"manquehue-vc",links:[["Andeshandbook: Manquehue", "https://www.andeshandbook.org/montanismo/cerro/13/manquehue"]],n:"Cerro Manquehue vía Vía Café",lv:"intermedio",acc:"Vía Café, Lo Curro, Vitacura",km:14,dist:"≈6",d:600,cima:"1.638",nota:"Reemplaza al antiguo acceso de Vía Roja, que cerró definitivamente a fines de 2025. Tiene sendero mantenido y parte con una caminata previa. Muy empinado, piedra suelta arriba.",alert:"Acceso nuevo, sin confirmación municipal de que sea permanente. Revisa antes de ir."},
+ {id:"manquehue-tr",links:[["Andeshandbook: Manquehue", "https://www.andeshandbook.org/montanismo/cerro/13/manquehue"], ["Komoot: loop Los Trapenses", "https://www.komoot.com/smarttour/37412658"]],n:"Cerro Manquehue loop Los Trapenses",lv:"intermedio",acc:"Los Trapenses, Lo Barnechea",km:18,dist:"6",d:590,cima:"1.638",nota:"Loop por el otro lado del cerro. Otros accesos al Manquehue: La Pirámide y Agua de Palo (Vitacura)."},
+ {id:"chena",links:[["Andeshandbook", "https://www.andeshandbook.org/montanismo/cerro/2537/chena"]],n:"Cerro Chena",lv:"intermedio",acc:"San Bernardo",km:20,dist:"6–12",d:300,cima:"≈950",nota:"Senderos rodantes; buena opción para sumar kilómetros."},
+ {id:"pochoco",links:[["Andeshandbook: ruta normal", "https://www.andeshandbook.org/montanismo/ruta/24/normal/dificultad"]],n:"Cerro Pochoco",lv:"intermedio",acc:"Camino a Farellones, Lo Barnechea",km:25,dist:"≈6",d:700,cima:"1.804",nota:"Se empina a medida que avanza. Vista a Santiago y al Plomo."},
+ {id:"salto-apoquindo",links:[["Andeshandbook", "https://www.andeshandbook.org/senderismo/ruta/759/salto_de_apoquindo"]],n:"Salto de Apoquindo",lv:"dificil",acc:"Parque Aguas de Ramón, Av. Álvaro Casanova, La Reina",km:15,dist:"≈16",d:900,cima:"—",nota:"Desnivel sostenido y casi sin sombra. Salir muy temprano.",alert:"Se entra por Aguas de Ramón: el ingreso a trekking cierra a las 13:00."},
+ {id:"la-cruz",links:[["Andeshandbook: por Quebrada de Macul", "https://www.andeshandbook.org/montanismo/ruta/906/quebrada_de_macul"], ["Andeshandbook: desde Mahuida", "https://www.andeshandbook.org/montanismo/ruta/148/normal_desde_parque_mahuida"]],n:"Cerro La Cruz (Quebrada de Macul)",lv:"dificil",acc:"Diagonal Las Torres s/n, Peñalolén",km:15,dist:"≈18",d:1700,cima:"2.552",nota:"Continuación sobre la Cascada San Juan. Bosque nativo al inicio, luego terreno abierto. Jornada larga de montaña. También se sube desde el Parque Mahuida."},
+ {id:"provincia",links:[["Andeshandbook: vía San Carlos de Apoquindo", "https://www.andeshandbook.org/montanismo/ruta/716/normal_via_san_carlos_de_apoquindo"]],n:"Cerro Provincia",lv:"dificil",acc:"San Carlos de Apoquindo, Las Condes",km:20,dist:"≈18",d:1900,cima:"2.750",nota:"Ya en clave de montaña. Mucha agua y salida al amanecer."},
+ {id:"san-ramon",links:[["Andeshandbook: travesía Provincia–Ramón", "https://www.andeshandbook.org/montanismo/ruta/104/travesia_provincia-ramon"], ["Andeshandbook: Sierra de Ramón", "https://www.andeshandbook.org/senderismo/ruta/estado/534/Travesia_Integral_de_la_Sierra_de_Ramon"]],n:"Cerro San Ramón",lv:"dificil",acc:"Aguas de Ramón o Quebrada de Macul",km:15,dist:"≈20+",d:2300,cima:"3.253",nota:"Nivel experto. Jornada completa; se suele pasar por La Cruz.",alert:"Si entras por Aguas de Ramón, el ingreso a trekking cierra a las 13:00: parte al abrir."}
+];
+const LV={facil:{t:"Fácil",c:"var(--easy)",o:0},intermedio:{t:"Intermedio",c:"var(--mid)",o:1},dificil:{t:"Difícil",c:"var(--hard)",o:2}};
+const MAXD=2300;
+const MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function weekends(n){
+  const out=[];const t=new Date();t.setHours(0,0,0,0);
+  const d=new Date(t);const dow=d.getDay();
+  // Saturday of the current weekend (if today is Sunday, use yesterday's Saturday)
+  d.setDate(d.getDate()+(dow===0?-1:6-dow));
+  for(let i=0;i<n;i++){const s=new Date(d);s.setDate(d.getDate()+7*i);out.push(s)}
+  return out;
+}
+function wkLabel(s){const e=new Date(s);e.setDate(s.getDate()+1);
+  return s.getMonth()===e.getMonth()?`${s.getDate()}–${e.getDate()} ${MESES[s.getMonth()]}`:`${s.getDate()} ${MESES[s.getMonth()]} – ${e.getDate()} ${MESES[e.getMonth()]}`}
+const WEEKS=weekends(12);
+
+let tiempos=[]; // {id, ruta, fecha, subida, bajada}
+let pendingDel=null;
+function fmt(m){if(m==null||m==="")return "—";m=Number(m);const h=Math.floor(m/60),mm=m%60;return h?`${h} h ${String(mm).padStart(2,"0")} min`:`${mm} min`}
+function best(id){const t=tiempos.filter(x=>x.ruta===id&&x.subida);if(!t.length)return null;return {subida:Math.min(...t.map(x=>x.subida)),n:t.length}}
+// --- Rendimiento: tramo de subida y regla de Naismith ---
+function upKm(r){if(r.ks)return r.ks;const m=String(r.dist).replace(",",".").match(/[\d.]+/);return m?parseFloat(m[0])/2:null}
+function naismith(r){const k=upKm(r);if(k==null)return null;return (k/5+r.d/600)*60} // minutos
+function band(x){if(x<1.2)return["Caminata","var(--muted)"];if(x<1.6)return["Caminata rápida","var(--easy)"];if(x<2.2)return["Trote de trail","var(--accent)"];if(x<2.8)return["Muy bueno","var(--mid)"];return["Competitivo","var(--hard)"]}
+function metrics(t){const r=R.find(x=>x.id===t.ruta);if(!r||!t.subida)return null;const n=naismith(r);if(!n)return null;
+  return {idx:n/t.subida,vam:r.d/(t.subida/60),est:!!r.dTxt||String(r.dist).includes("≈"),baj:t.bajada?t.bajada/t.subida:null}}
+function myIdx(){const ms=tiempos.map(metrics).filter(Boolean);if(!ms.length)return null;return ms.reduce((a,m)=>a+m.idx,0)/ms.length}
+const nf1=v=>v.toLocaleString("es-CL",{minimumFractionDigits:1,maximumFractionDigits:1});
+const nf0=v=>Math.round(v).toLocaleString("es-CL");
+function renderPerf(){
+  const el=document.getElementById("perf");el.innerHTML="";
+  const ms=tiempos.map(metrics).filter(Boolean);if(!ms.length)return;
+  const idx=myIdx();const vam=ms.reduce((a,m)=>a+m.vam,0)/ms.length;
+  const bj=ms.filter(m=>m.baj);const bjr=bj.length?bj.reduce((a,m)=>a+m.baj,0)/bj.length:null;
+  const [bt,bc]=band(idx);
+  const cards=[
+    [nf1(idx),"Índice promedio",`Nivel: ${bt}. Subes ${nf1(idx)} veces más rápido que el estándar de caminata.`],
+    [nf0(vam),"m/h de subida",vam<600?"Sobre 600 m/h ya es ritmo de trote sostenido en cuesta.":vam<800?"Rango de corredor de trail en forma. La siguiente marca es 800 m/h.":"Ritmo vertical alto. Cuida que no baje en rutas largas."],
+    bjr?[Math.round(bjr*100)+"%","Bajada / subida",bjr>0.55?"Bajas lento respecto a tu subida: hay margen en técnica de bajada.":bjr>0.4?"Proporción normal. Bajar al 35–40 % de la subida es la siguiente mejora.":"Bajada rápida. Prioriza control y tobillos fuertes."]:null
+  ].filter(Boolean);
+  cards.forEach(([v,l,p])=>{const d=document.createElement("div");d.className="pc";const b=document.createElement("b");b.textContent=v;const s=document.createElement("span");s.textContent=l;const q=document.createElement("p");q.textContent=p;d.append(b,s,q);el.appendChild(d)});
+}
+function fdate(s){if(!s)return "Sin fecha";const [y,m,d]=s.split("-").map(Number);return `${d} ${MESES[m-1]} ${y}`}
+function loadLocalT(){try{const v=localStorage.getItem("cerros-tiempos");if(v)tiempos=JSON.parse(v)}catch(e){}}
+function saveLocalT(){try{localStorage.setItem("cerros-tiempos",JSON.stringify(tiempos))}catch(e){}}
+function renderTimes(){
+  const tb=document.getElementById("tbody");tb.innerHTML="";
+  const rows=tiempos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")||(b.creado||"").localeCompare(a.creado||""));
+  renderPerf();
+  if(!rows.length){tb.innerHTML='<tr><td class="empty" colspan="9">Todavía no hay tiempos. Registra tu primera subida arriba.</td></tr>';return}
+  rows.forEach(t=>{
+    const r=R.find(x=>x.id===t.ruta);const b=best(t.ruta);
+    const tr=document.createElement("tr");
+    const cells=[fdate(t.fecha),r?r.n:t.ruta,fmt(t.subida),fmt(t.bajada),t.subida&&t.bajada?fmt(Number(t.subida)+Number(t.bajada)):"—"];
+    cells.forEach((v,i)=>{const td=document.createElement("td");td.textContent=v;if(i>=2)td.className="n";tr.appendChild(td)});
+    if(b&&b.n>1&&t.subida===b.subida){const s=document.createElement("span");s.className="pbtag";s.textContent="Mejor";tr.children[2].appendChild(s)}
+    const m=metrics(t);
+    const tdV=document.createElement("td");tdV.className="n";tdV.textContent=m?(m.est?"≈":"")+nf0(m.vam):"—";
+    const tdI=document.createElement("td");tdI.className="n";tdI.textContent=m?(m.est?"≈":"")+nf1(m.idx):"—";
+    const tdB=document.createElement("td");if(m){const [bt,bc]=band(m.idx);const ch=document.createElement("span");ch.className="lvchip";ch.style.setProperty("--c",bc);ch.textContent=bt;tdB.appendChild(ch)}
+    tr.append(tdV,tdI,tdB);
+    const td=document.createElement("td");td.className="n";
+    const del=document.createElement("button");del.type="button";del.className="del"+(pendingDel===t.id?" confirm":"");
+    del.textContent=pendingDel===t.id?"¿Borrar?":"Borrar";del.disabled=!canWrite;
+    del.addEventListener("click",()=>{if(pendingDel===t.id){pendingDel=null;delTime(t.id)}else{pendingDel=t.id;renderTimes()}});
+    td.appendChild(del);tr.appendChild(td);tb.appendChild(tr);
+  });
+}
+async function addTime(t){
+  tiempos.push(t);saveLocalT();render();
+  if(db){try{await db.collection("tiempos").doc(t.id).set({ruta:t.ruta,fecha:t.fecha,subida:t.subida,bajada:t.bajada,creado:t.creado})}
+    catch(e){tiempos=tiempos.filter(x=>x.id!==t.id);saveLocalT();render();tmsg(e&&e.code==="invalid_argument"?"No tienes permiso para guardar tiempos en esta página.":"No se pudo guardar el tiempo. Inténtalo de nuevo.");return false}}
+  tmsg("Tiempo guardado.");return true;
+}
+async function delTime(id){
+  const prev=tiempos;tiempos=tiempos.filter(x=>x.id!==id);saveLocalT();render();
+  if(db){try{await db.collection("tiempos").doc(id).delete()}catch(e){tiempos=prev;saveLocalT();render();tmsg("No se pudo borrar. Inténtalo de nuevo.")}}
+}
+function tmsg(t){document.getElementById("t-msg").textContent=t}
+(function initForm(){
+  const sel=document.getElementById("t-ruta");
+  R.slice().sort((a,b)=>a.n.localeCompare(b.n,"es")).forEach(r=>{const o=document.createElement("option");o.value=r.id;o.textContent=r.n;sel.appendChild(o)});
+  document.getElementById("t-fecha").value=iso(new Date());
+  document.getElementById("tform").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const sub=parseInt(document.getElementById("t-sub").value,10);const baj=parseInt(document.getElementById("t-baj").value,10);
+    if(!sub||sub<1){tmsg("Ingresa los minutos de subida.");return}
+    const btn=document.getElementById("t-save");btn.disabled=true;
+    const id="t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    const ok=await addTime({id,ruta:sel.value,fecha:document.getElementById("t-fecha").value||"",subida:sub,bajada:baj>0?baj:null,creado:new Date().toISOString()});
+    btn.disabled=false;
+    if(ok){document.getElementById("t-sub").value="";document.getElementById("t-baj").value=""}
+  });
+})();
+
+let plans={}; // id -> {fecha, estado}
+let filtro="todos", orden="nivel", db=null, canWrite=true;
+
+function loadLocal(){try{const v=localStorage.getItem("cerros-plans");if(v)plans=JSON.parse(v)}catch(e){}}
+function saveLocal(){try{localStorage.setItem("cerros-plans",JSON.stringify(plans))}catch(e){}}
+
+function render(){
+  renderTimes();
+  // stats
+  const hechas=R.filter(r=>plans[r.id]?.estado==="hecha").length;
+  const plan=R.filter(r=>plans[r.id]?.estado==="planificada").length;
+  document.getElementById("stats").innerHTML=
+    `<div class="stat"><b>${R.length}</b> rutas</div><div class="stat"><b>${plan}</b> planificadas</div><div class="stat"><b>${hechas}</b> hechas</div>`;
+  // weeks
+  const wk=document.getElementById("weeks");wk.innerHTML="";
+  WEEKS.slice(0,8).forEach(s=>{
+    const k=iso(s);const rs=R.filter(r=>plans[r.id]?.fecha===k);
+    const el=document.createElement("div");el.className="wk"+(rs.length?" has":"");
+    const d=document.createElement("div");d.className="d";d.textContent=wkLabel(s);
+    const r=document.createElement("div");r.className="r"+(rs.length?"":" empty");
+    if(rs.length){rs.forEach(x=>{const sp=document.createElement("span");sp.textContent=(plans[x.id].estado==="hecha"?"✓ ":"")+x.n;r.appendChild(sp)})}
+    else r.textContent="Libre";
+    el.append(d,r);wk.appendChild(el);
+  });
+  // list
+  let rs=R.slice();
+  if(filtro==="pendientes")rs=rs.filter(r=>plans[r.id]?.estado!=="hecha");
+  else if(filtro!=="todos")rs=rs.filter(r=>r.lv===filtro);
+  if(orden==="nivel")rs.sort((a,b)=>LV[a.lv].o-LV[b.lv].o||a.d-b.d);
+  if(orden==="cerca")rs.sort((a,b)=>a.km-b.km);
+  if(orden==="desnivel")rs.sort((a,b)=>a.d-b.d);
+  const list=document.getElementById("list");list.innerHTML="";
+  rs.forEach(r=>{
+    const p=plans[r.id]||{};const L=LV[r.lv];
+    const c=document.createElement("article");c.className="card"+(p.estado==="hecha"?" done":"");c.style.setProperty("--lv",L.c);
+    c.innerHTML=`<div class="top"><div><h3></h3><p class="acc"></p></div><span class="lvl">${L.t}</span></div>
+      <div class="nums"><div><b>${r.km}</b><span>km acceso</span></div><div><b>${r.dist}</b><span>km ruta</span></div><div><b>${r.dTxt||r.d.toLocaleString("es-CL")}</b><span>m desnivel</span></div><div><b>${r.cima}</b><span>msnm cima</span></div></div>
+      <div class="bar" aria-hidden="true"><i style="width:${Math.max(4,r.d/MAXD*100)}%"></i></div>
+      <p class="note"></p>
+      ${r.alert?'<p class="alert"></p>':''}
+      <p class="links"></p>
+      ${best(r.id)?'<p class="pb"></p>':''}
+      ${myIdx()&&naismith(r)?'<p class="proj"></p>':''}
+      <div class="plan"><select aria-label="Fin de semana para ${r.n}" id="sel-${r.id}"></select>
+      <div class="st" role="group" aria-label="Estado"><button data-e="planificada">Planificada</button><button data-e="hecha">Hecha</button></div></div>`;
+    c.querySelector("h3").textContent=r.n;
+    c.querySelector(".acc").textContent=r.acc;
+    c.querySelector(".note").textContent=r.nota;
+    if(r.alert)c.querySelector(".alert").textContent=r.alert;
+    const lk=c.querySelector(".links");
+    const q=encodeURIComponent(r.n.replace(/:.*/,"")+" "+(r.n.includes(":")?r.n.split(":")[1]:"")+" Santiago");
+    [...(r.links||[]),["Buscar en Wikiloc","https://www.google.com/search?q=site%3Awikiloc.com+"+q],["Buscar en AllTrails","https://www.google.com/search?q=site%3Aalltrails.com+"+q]]
+      .forEach(([t,u])=>{const a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";a.textContent=t;lk.appendChild(a)});
+    const b=best(r.id);
+    if(b)c.querySelector(".pb").textContent=`Tu mejor subida: ${fmt(b.subida)} · ${b.n} ${b.n===1?"registro":"registros"}`;
+    const pj=c.querySelector(".proj");
+    if(pj){
+      // en subidas sobre 1.000 m de desnivel el ritmo cae: se descuenta un 15 % del índice
+      const k=myIdx()*(r.d>1000?0.85:1);const mins=Math.round(naismith(r)/k/5)*5;
+      pj.innerHTML="Subida estimada a tu ritmo: <b></b>";pj.querySelector("b").textContent="≈ "+fmt(mins);
+    }
+    const sel=c.querySelector("select");
+    const o0=document.createElement("option");o0.value="";o0.textContent="Sin fecha";sel.appendChild(o0);
+    const opts=WEEKS.map(s=>[iso(s),wkLabel(s)]);
+    if(p.fecha&&!opts.some(o=>o[0]===p.fecha))opts.unshift([p.fecha,p.fecha]);
+    opts.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent="Fin de semana "+t;sel.appendChild(o)});
+    sel.value=p.fecha||"";sel.disabled=!canWrite;
+    sel.addEventListener("change",()=>setPlan(r.id,{fecha:sel.value,estado:sel.value?(p.estado==="hecha"?"hecha":"planificada"):(p.estado==="hecha"?"hecha":"")}));
+    c.querySelectorAll(".st button").forEach(b=>{
+      b.setAttribute("aria-pressed",String(p.estado===b.dataset.e));b.disabled=!canWrite;
+      b.addEventListener("click",()=>{const e=p.estado===b.dataset.e?"":b.dataset.e;setPlan(r.id,{fecha:p.fecha||"",estado:e})});
+    });
+    list.appendChild(c);
+  });
+}
+
+async function setPlan(id,v){
+  const prev=plans[id];
+  if(!v.fecha&&!v.estado){delete plans[id]}else plans[id]=v;
+  saveLocal();render();
+  if(db){
+    try{
+      const ref=db.collection("plans").doc(id);
+      if(!v.fecha&&!v.estado)await ref.delete();else await ref.set({fecha:v.fecha,estado:v.estado,actualizado:new Date().toISOString()});
+    }catch(e){
+      if(e&&e.code==="invalid_argument"){canWrite=false;if(prev)plans[id]=prev;else delete plans[id];render();setSync("Solo lectura: no puedes cambiar los planes de esta página.")}
+      else setSync("No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.");
+    }
+  }
+}
+function setSync(t){document.getElementById("sync").textContent=t}
+
+document.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{
+  filtro=b.dataset.f;document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render();
+}));
+document.getElementById("orden").addEventListener("change",e=>{orden=e.target.value;render()});
+
+loadLocal();loadLocalT();render();
+setSync("Guardado solo en este dispositivo hasta conectar con tu cuenta…");
+
+setSync("Guardado en este dispositivo.");
+
+// --- Respaldo: exportar e importar JSON ---
+document.getElementById("b-export").addEventListener("click",()=>{
+  const data={app:"cerros-para-correr",version:1,exportado:new Date().toISOString(),plans,tiempos};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="respaldo-cerros-"+iso(new Date())+".json";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  document.getElementById("b-msg").textContent="Respaldo descargado.";
+});
+document.getElementById("b-import").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const d=JSON.parse(await f.text());
+    if(!d||typeof d.plans!=="object"||!Array.isArray(d.tiempos))throw new Error("formato");
+    plans=d.plans;tiempos=d.tiempos;saveLocal();saveLocalT();render();
+    document.getElementById("b-msg").textContent=`Importados ${tiempos.length} tiempos y ${Object.keys(plans).length} planes.`;
+  }catch(err){document.getElementById("b-msg").textContent="Ese archivo no es un respaldo válido de esta app."}
+  e.target.value="";
+});
+
+// --- Funcionamiento sin conexión ---
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+</script>
+</body>
+</html>
